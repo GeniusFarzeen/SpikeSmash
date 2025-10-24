@@ -6,17 +6,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
     body {
-        background: #050015;
-        color: #fff;
-        text-align: center;
-        font-family: 'Segoe UI', sans-serif;
         margin: 0;
         overflow: hidden;
+        background: #050015;
+        font-family: 'Segoe UI', sans-serif;
     }
     #gameCanvas {
         display: block;
-        background: radial-gradient(circle, #0a0026, #000);
         margin: auto;
+        background: radial-gradient(circle, #0a0026, #000);
         border: 3px solid #8215ff;
         box-shadow: 0 0 20px #8215ff;
         border-radius: 10px;
@@ -37,18 +35,13 @@
 
 <div id="ui">Score: 0 | Spikes: 0</div>
 <canvas id="gameCanvas" width="400" height="600"></canvas>
-<audio id="clickSound" src="Spike Smash Anthem.mp3"></audio>
+<audio id="bgMusic" src="Spike Smash Anthem.mp3" loop autoplay></audio>
 
 <script>
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-let score = 0;
-let spikes = [];
-let maxSpikes = 6;
-let clickBoost = 0;
-
-// Player ball
+// Ball
 let ball = {
     x: canvas.width / 2,
     y: canvas.height - 120,
@@ -56,35 +49,33 @@ let ball = {
     neonPulse: 0
 };
 
-// UI
+// Spikes
+let spikes = [];
+let maxSpikes = 6;
+
+// Score
+let score = 0;
 const ui = document.getElementById("ui");
-function updateUI(){
+function updateUI() {
     ui.textContent = `Score: ${score} | Spikes: ${spikes.length}`;
 }
 
-// Spike spawn sound
-const clickSound = document.getElementById("clickSound");
-
-// Spawn spike toward player (click effect)
-function spawnSpike(rate=1){
-    for(let i=0;i<rate;i++){
-        if(spikes.length < maxSpikes){
-            spikes.push({
-                x: Math.random() * (canvas.width - 30),
-                y: -40,
-                size: 30,
-                speed: 4 + clickBoost
-            });
-        }
+// Spawn spikes randomly from top
+function spawnSpike() {
+    if (spikes.length < maxSpikes) {
+        spikes.push({
+            x: Math.random() * (canvas.width - 30),
+            y: -40,
+            size: 30,
+            speed: 3 + Math.random()*2
+        });
     }
-    clickSound.currentTime = 0;
-    clickSound.play();
 }
 
-// Draw glowing ball
-function drawBall(){
+// Draw neon ball
+function drawBall() {
     ball.neonPulse += 0.15;
-    let glow = Math.sin(ball.neonPulse)*10 + 25;
+    let glow = Math.sin(ball.neonPulse) * 10 + 25;
     ctx.beginPath();
     ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
     ctx.fillStyle = "#00f2ff";
@@ -95,52 +86,60 @@ function drawBall(){
 }
 
 // Draw spikes
-function drawSpikes(){
+function drawSpikes() {
     ctx.fillStyle = "#ff005d";
     spikes.forEach(s => {
         s.y += s.speed;
-        if(s.y > canvas.height) s.y = -40; // loop back
+        if (s.y > canvas.height) s.y = -40; // loop back
         ctx.beginPath();
         ctx.moveTo(s.x, s.y);
-        ctx.lineTo(s.x+s.size, s.y);
-        ctx.lineTo(s.x+s.size/2, s.y+s.size);
+        ctx.lineTo(s.x + s.size, s.y);
+        ctx.lineTo(s.x + s.size / 2, s.y + s.size);
         ctx.closePath();
         ctx.fill();
+
+        // Check collision with ball
+        const dx = ball.x - (s.x + s.size/2);
+        const dy = ball.y - (s.y + s.size/2);
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < ball.r + s.size/2) {
+            // spike hits ball — increment score
+            score += 1;
+            s.y = -40; // reset spike
+            updateUI();
+        }
     });
 }
 
-// Click = spawn spikes + boost
-canvas.addEventListener("click", (e)=>{
-    clickBoost += 0.8;
-    spawnSpike(3);
-    score++;
-    updateUI();
+// Click/tap spawns more spikes
+canvas.addEventListener("click", () => {
+    for(let i=0;i<2;i++) spawnSpike();
+});
+canvas.addEventListener("touchstart", () => {
+    for(let i=0;i<2;i++) spawnSpike();
 });
 
-// Mouse / touch move ball
-canvas.addEventListener("mousemove", (e)=>{
+// Ball movement controlled by mouse/touch
+canvas.addEventListener("mousemove", e => {
     let r = canvas.getBoundingClientRect();
-    ball.x = Math.max(ball.r, Math.min(canvas.width-ball.r, e.clientX - r.left));
+    ball.x = Math.max(ball.r, Math.min(canvas.width - ball.r, e.clientX - r.left));
 });
-canvas.addEventListener("touchmove", (e)=>{
+canvas.addEventListener("touchmove", e => {
     let r = canvas.getBoundingClientRect();
-    ball.x = Math.max(ball.r, Math.min(canvas.width-ball.r, e.touches[0].clientX - r.left));
+    ball.x = Math.max(ball.r, Math.min(canvas.width - ball.r, e.touches[0].clientX - r.left));
 });
 
 // Game loop
-function loop(){
+function loop() {
     ctx.clearRect(0,0,canvas.width,canvas.height);
     drawBall();
     drawSpikes();
-    
-    // spawn spikes randomly
-    if(Math.random() < 0.06 + clickBoost*0.02) spawnSpike();
-    clickBoost *= 0.95; // decay boost
 
+    if (Math.random() < 0.05) spawnSpike();
     requestAnimationFrame(loop);
 }
 
-// Start game instantly
+// Start
 updateUI();
 loop();
 </script>
