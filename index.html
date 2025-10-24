@@ -3,18 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <title>Spike Smash</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
     body {
+        background: #050015;
+        color: #fff;
+        text-align: center;
+        font-family: 'Segoe UI', sans-serif;
         margin: 0;
         overflow: hidden;
-        background: radial-gradient(circle, #0a0a12, #000);
-        font-family: "Orbitron", sans-serif;
     }
-    canvas {
+    #gameCanvas {
         display: block;
+        background: radial-gradient(circle, #0a0026, #000);
         margin: auto;
-        background: #0c0f1a;
-        border: 3px solid cyan;
+        border: 3px solid #8215ff;
+        box-shadow: 0 0 20px #8215ff;
         border-radius: 10px;
     }
     #ui {
@@ -32,123 +36,111 @@
 <body>
 
 <div id="ui">Score: 0 | Spikes: 0</div>
-<canvas id="game" width="400" height="600"></canvas>
+<canvas id="gameCanvas" width="400" height="600"></canvas>
+<audio id="clickSound" src="Spike Smash Anthem.mp3"></audio>
 
 <script>
-const canvas = document.getElementById("game");
+const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// Ball
+let score = 0;
+let spikes = [];
+let maxSpikes = 6;
+let clickBoost = 0;
+
+// Player ball
 let ball = {
-    x: 200,
-    y: 300,
-    radius: 15,
-    speedX: 0,
-    speedY: -4,
-    gravity: 0.15,
-    bounce: 0.88 // juicy bounce 😌🔥
+    x: canvas.width / 2,
+    y: canvas.height - 120,
+    r: 45,
+    neonPulse: 0
 };
 
-// Spikes
-let spikes = [];
-let maxSpikes = 3; // satisfying limit
-let score = 0;
-
-function spawnSpike() {
-    if (spikes.length < maxSpikes) {
-        spikes.push({
-            x: Math.random() * 360 + 20,
-            y: 600,
-            width: 40,
-            height: 40,
-            speed: 3 + Math.random() * 2
-        });
-    }
+// UI
+const ui = document.getElementById("ui");
+function updateUI(){
+    ui.textContent = `Score: ${score} | Spikes: ${spikes.length}`;
 }
 
-canvas.addEventListener("click", () => {
-    ball.speedY -= 4;
-    score++;
-    if (score % 5 === 0 && maxSpikes < 8) {
-        maxSpikes++; // gets harder slowly
+// Spike spawn sound
+const clickSound = document.getElementById("clickSound");
+
+// Spawn spike toward player (click effect)
+function spawnSpike(rate=1){
+    for(let i=0;i<rate;i++){
+        if(spikes.length < maxSpikes){
+            spikes.push({
+                x: Math.random() * (canvas.width - 30),
+                y: -40,
+                size: 30,
+                speed: 4 + clickBoost
+            });
+        }
     }
+    clickSound.currentTime = 0;
+    clickSound.play();
+}
+
+// Draw glowing ball
+function drawBall(){
+    ball.neonPulse += 0.15;
+    let glow = Math.sin(ball.neonPulse)*10 + 25;
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+    ctx.fillStyle = "#00f2ff";
+    ctx.shadowColor = "#9b2bff";
+    ctx.shadowBlur = glow;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+}
+
+// Draw spikes
+function drawSpikes(){
+    ctx.fillStyle = "#ff005d";
+    spikes.forEach(s => {
+        s.y += s.speed;
+        if(s.y > canvas.height) s.y = -40; // loop back
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(s.x+s.size, s.y);
+        ctx.lineTo(s.x+s.size/2, s.y+s.size);
+        ctx.closePath();
+        ctx.fill();
+    });
+}
+
+// Click = spawn spikes + boost
+canvas.addEventListener("click", (e)=>{
+    clickBoost += 0.8;
+    spawnSpike(3);
+    score++;
     updateUI();
 });
 
-function updateUI() {
-    document.getElementById("ui").textContent = `Score: ${score} | Spikes: ${spikes.length}`;
-}
+// Mouse / touch move ball
+canvas.addEventListener("mousemove", (e)=>{
+    let r = canvas.getBoundingClientRect();
+    ball.x = Math.max(ball.r, Math.min(canvas.width-ball.r, e.clientX - r.left));
+});
+canvas.addEventListener("touchmove", (e)=>{
+    let r = canvas.getBoundingClientRect();
+    ball.x = Math.max(ball.r, Math.min(canvas.width-ball.r, e.touches[0].clientX - r.left));
+});
 
-function physics() {
-    ball.y += ball.speedY;
-    ball.x += ball.speedX;
-    ball.speedY += ball.gravity;
-
-    // Bounce off walls so ball stays visible ✅
-    if (ball.x - ball.radius < 0 || ball.x + ball.radius > canvas.width) {
-        ball.speedX *= -1;
-    }
-    if (ball.y - ball.radius < 0) {
-        ball.speedY *= -1;
-    }
-    if (ball.y + ball.radius > canvas.height) {
-        ball.speedY *= -0.9;
-        ball.y = canvas.height - ball.radius;
-    }
-}
-
-function drawBall() {
-    ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-    let gradient = ctx.createRadialGradient(ball.x, ball.y, 2, ball.x, ball.y, 20);
-    gradient.addColorStop(0, "white");
-    gradient.addColorStop(1, "cyan");
-    ctx.fillStyle = gradient;
-    ctx.fill();
-}
-
-function drawSpike(s) {
-    ctx.fillStyle = "red";
-    ctx.beginPath();
-    ctx.moveTo(s.x, s.y);
-    ctx.lineTo(s.x + 20, s.y + 40);
-    ctx.lineTo(s.x - 20, s.y + 40);
-    ctx.closePath();
-    ctx.fill();
-}
-
-function updateSpikes() {
-    spikes.forEach((s) => s.y -= s.speed);
-    spikes = spikes.filter((s) => s.y > -50);
-}
-
-function checkCollision() {
-    for (let s of spikes) {
-        let dx = ball.x - s.x;
-        let dy = ball.y - s.y;
-        let dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < ball.radius + 20) {
-            alert("Game Over! Score: " + score);
-            location.reload();
-        }
-    }
-}
-
-function loop() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    if (Math.random() < 0.02) spawnSpike();
-
-    physics();
-    updateSpikes();
-    checkCollision();
-
+// Game loop
+function loop(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
     drawBall();
-    spikes.forEach(drawSpike);
+    drawSpikes();
+    
+    // spawn spikes randomly
+    if(Math.random() < 0.06 + clickBoost*0.02) spawnSpike();
+    clickBoost *= 0.95; // decay boost
 
     requestAnimationFrame(loop);
 }
 
+// Start game instantly
 updateUI();
 loop();
 </script>
