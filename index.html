@@ -35,7 +35,7 @@
 
 <div id="ui">Score: 0 | Spikes: 0</div>
 <canvas id="gameCanvas" width="400" height="600"></canvas>
-<audio id="bgMusic" src="Spike Smash Anthem.mp3" loop autoplay></audio>
+<audio id="bgMusic" src="Spike Smash Anthem.mp3" loop></audio>
 
 <script>
 const canvas = document.getElementById("gameCanvas");
@@ -111,15 +111,29 @@ function drawSpikes() {
     });
 }
 
-// Click/tap spawns more spikes
+// Music control
+const bgMusic = document.getElementById("bgMusic");
+let musicStarted = false;
+
+// Click/tap spawns spikes + start music
 canvas.addEventListener("click", () => {
     for(let i=0;i<2;i++) spawnSpike();
-});
-canvas.addEventListener("touchstart", () => {
-    for(let i=0;i<2;i++) spawnSpike();
+
+    if(!musicStarted){
+        bgMusic.play().catch(e => console.log("Music blocked:", e));
+        musicStarted = true;
+    }
 });
 
-// Ball movement controlled by mouse/touch
+canvas.addEventListener("touchstart", () => {
+    for(let i=0;i<2;i++) spawnSpike();
+    if(!musicStarted){
+        bgMusic.play().catch(e => console.log("Music blocked:", e));
+        musicStarted = true;
+    }
+});
+
+// Ball movement with mouse/touch
 canvas.addEventListener("mousemove", e => {
     let r = canvas.getBoundingClientRect();
     ball.x = Math.max(ball.r, Math.min(canvas.width - ball.r, e.clientX - r.left));
